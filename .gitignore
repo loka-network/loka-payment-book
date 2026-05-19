@@ -1,0 +1,19 @@
+# macOS / editor noise
+.DS_Store
+.AppleDouble
+.LSOverride
+*.swp
+*.swo
+.idea/
+.vscode/
+
+# Local dev scratch
+node_modules/
+dist/
+build/
+_site/
+
+# Doc-tool scratch (workspace-only, not part of the published site)
+screenshots/
+uploads/
+scraps/
