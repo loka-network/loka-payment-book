@@ -8,6 +8,7 @@ const PC_SUBTABS = [
   { id: 'routes',    label: 'Custody Routes' },
   { id: 'commands',  label: 'Commands' },
   { id: 'skill',     label: 'AI Agent Skill' },
+  { id: 'mcp',       label: 'MCP Server' },
 ];
 
 function PagePaycli({ sub, setSub, registerSections, jump }) {
@@ -45,6 +46,13 @@ function PagePaycli({ sub, setSub, registerSections, jump }) {
         { id: 'pc-skill-fail',   label: 'Failure-mode dictionary' },
         { id: 'pc-skill-conv',   label: 'Conventions for the agent' },
       ]}],
+      mcp: [{ title: 'MCP Server', items: [
+        { id: 'pc-mcp-why',     label: 'Why an MCP server' },
+        { id: 'pc-mcp-config',  label: 'Client config (Claude / Cursor / Continue)' },
+        { id: 'pc-mcp-tools',   label: 'Exposed tools' },
+        { id: 'pc-mcp-trust',   label: 'Trust model · stdio-only' },
+        { id: 'pc-mcp-audit',   label: 'Audit log' },
+      ]}],
     };
     registerSections(sections[active]);
   }, [active]);
@@ -72,6 +80,7 @@ function PagePaycli({ sub, setSub, registerSections, jump }) {
       {active === 'routes'   && <PC_Routes />}
       {active === 'commands' && <PC_Commands />}
       {active === 'skill'    && <PC_Skill />}
+      {active === 'mcp'      && <PC_MCP />}
     </>
   );
 }
@@ -401,6 +410,140 @@ function PC_Skill() {
         <li><strong>Surface the route in your responses.</strong> "I'll pay from your <em>hosted</em> wallet" beats "I'll run <code>lokapay pay</code>".</li>
         <li><strong>Quote exit codes.</strong> <code>lokapay</code> returns <code>0</code> on success, <code>1</code> on any error with a stderr message. Show the message — don't paraphrase.</li>
       </ol>
+    </>
+  );
+}
+
+/* ---------- MCP server ----------- */
+function PC_MCP() {
+  return (
+    <>
+      <Callout kind="cyan" label="lokapay mcp · stdio MCP server">
+        Run <code>lokapay mcp</code> and an MCP-aware AI client (Claude Desktop,
+        Cursor, Continue, …) can drive lokapay through structured JSON tool
+        calls instead of shell-execing the CLI. Shipped in
+        <code> cmd/lokapay/cmd_mcp.go</code>.
+      </Callout>
+
+      <H2 id="pc-mcp-why" n={1}>Why an MCP server</H2>
+      <p>
+        Most agent integrations end up parsing CLI stdout — brittle, can't
+        distinguish a real error from a transient log, breaks when flags
+        evolve. The Model Context Protocol gives the same operations a
+        typed RPC surface: schemas are auto-derived from Go struct tags,
+        errors come back as <code>IsError</code> on the tool result, and the
+        client never has to reach for <code>grep</code>.
+      </p>
+      <p>
+        Two paths now coexist:
+      </p>
+      <Grid cols={2}>
+        <div className="card">
+          <h3>Shell-exec agents</h3>
+          <p style={{margin:0}}>Claude Code, cursor-cli, anything that can
+          <code> run lokapay …</code>. Use the SKILL document for intent → command
+          mapping.</p>
+        </div>
+        <div className="card">
+          <h3>MCP-aware agents</h3>
+          <p style={{margin:0}}>Claude Desktop, Cursor, Continue, Zed, etc. Use the
+          MCP server — they can't shell-exec, but they can call typed tools.</p>
+        </div>
+      </Grid>
+
+      <H2 id="pc-mcp-config" n={2}>Client config</H2>
+      <p>
+        Before first use, run <code>lokapay init</code> once in a terminal —
+        the MCP server reuses the same <code>~/.lokapay/config.json</code>. The
+        wizard is TTY-interactive so it can't be run from inside an MCP session.
+      </p>
+      <p><strong>Claude Desktop</strong> (<code>~/Library/Application Support/Claude/claude_desktop_config.json</code> on macOS):</p>
+      <Code lang="json">{`{
+  "mcpServers": {
+    "lokapay": {
+      "command": "lokapay",
+      "args": ["mcp"]
+    }
+  }
+}`}</Code>
+      <p><strong>Cursor</strong> — same shape in <code>~/.cursor/mcp.json</code>.</p>
+      <p><strong>Continue</strong> — same shape in <code>~/.continue/mcp.json</code>.</p>
+      <p className="muted">Restart the client; the <code>lokapay</code> tools appear in the tool picker.</p>
+
+      <H2 id="pc-mcp-tools" n={3}>Exposed tools</H2>
+      <p>Input schemas auto-derived from Go struct tags; descriptions surface the side-effect class directly to the LLM.</p>
+      <table className="tight">
+        <thead><tr><th>Tool</th><th>Side effect</th><th>Args</th><th>Notes</th></tr></thead>
+        <tbody>
+          <tr>
+            <td><code>whoami</code></td>
+            <td>read-only</td>
+            <td>—</td>
+            <td>route + identity + balance. <strong>Secrets stripped</strong> — no admin_key / bearer / invoice_key.</td>
+          </tr>
+          <tr>
+            <td><code>services</code></td>
+            <td>read-only</td>
+            <td><code>search?</code></td>
+            <td>Lists Prism's L402 service catalog. Optional case-insensitive substring filter.</td>
+          </tr>
+          <tr>
+            <td><code>pay</code></td>
+            <td>⚠️ spends real funds</td>
+            <td><code>bolt11</code></td>
+            <td>Returns <code>payment_hash + preimage + amount + status</code>.</td>
+          </tr>
+          <tr>
+            <td><code>request</code></td>
+            <td>⚠️ may spend real funds</td>
+            <td><code>url</code>, <code>method?</code>, <code>headers?</code>, <code>host?</code>, <code>body?</code>, <code>insecure_target?</code>, <code>max_retries?</code></td>
+            <td>HTTP with auto-L402 handling. Body truncated to 64 KiB.</td>
+          </tr>
+          <tr>
+            <td><code>history</code></td>
+            <td>read-only</td>
+            <td><code>limit?</code> (default 10, max 100), <code>offset?</code></td>
+            <td>Recent payments on active wallet. Hosted + node both supported.</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <p className="muted">
+        Intentionally <strong>not exposed</strong> (TTY-interactive or operator-only):{' '}
+        <code>init</code>, <code>node start/stop/restart/install/faucet</code>,{' '}
+        <code>topup</code>, <code>admin-set</code>, <code>auth-login</code>,{' '}
+        <code>register</code>, <code>login</code>, <code>route</code>.
+      </p>
+
+      <H2 id="pc-mcp-trust" n={4}>Trust model — stdio only, by design</H2>
+      <Callout kind="amber" label="No network surface. Ever.">
+        <code>lokapay mcp</code> only speaks MCP over stdio. There is no
+        listening socket, no SSE endpoint, no HTTP transport. SSE / HTTP
+        modes <strong>will not</strong> be added without first solving the
+        remote-auth + remote-asset-control threat model from first
+        principles. This is a wallet — exposing it on the network means
+        anyone who reaches the port can pay invoices.
+      </Callout>
+      <ul>
+        <li><strong>Process-scoped reach.</strong> Only the parent process that spawned <code>lokapay mcp</code> can talk to it (stdin/stdout). No remote attack vector.</li>
+        <li><strong>Credentials read, never returned.</strong> Wallet keys live in <code>~/.lokapay/config.json</code>. The server reads them to call Lightning APIs but strips them from every tool response.</li>
+        <li><strong>Bounded blast radius.</strong> Tools that spend money have ⚠️ in their description so the LLM client can warn / confirm. Operator-only ops are simply not registered.</li>
+        <li><strong>Stdout is reserved for the JSON-RPC protocol.</strong> All MCP server logs go to <code>stderr</code> — writing anything else to stdout would corrupt the transport.</li>
+      </ul>
+
+      <H2 id="pc-mcp-audit" n={5}>Audit log</H2>
+      <p>
+        Every tool invocation appends one-line JSON to <code>~/.lokapay/mcp-audit.log</code>
+        {' '}(mode <code>0600</code>) so you can see exactly what the agent did:
+      </p>
+      <Code lang="json">{`{"ts":"2026-05-20T10:24:18Z","tool":"whoami","args":null}
+{"ts":"2026-05-20T10:24:19Z","tool":"services","args":{"search":"research"}}
+{"ts":"2026-05-20T10:24:32Z","tool":"pay","args":{"bolt11":"lnbcrt1m1p4q…"}}
+{"ts":"2026-05-20T10:25:05Z","tool":"request","args":{"url":"https://service1.prism.loka.cash/data.json","method":"","host":""}}`}</Code>
+      <p className="muted">
+        Secret-bearing args (full <code>bolt11</code>) are truncated; the audit row
+        records intent + outcome, not the recoverable payment data.
+      </p>
     </>
   );
 }
