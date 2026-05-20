@@ -26,6 +26,7 @@ const PROJECTS = [
       { id: 'routes',   label: 'Custody Routes' },
       { id: 'commands', label: 'Commands' },
       { id: 'skill',    label: 'AI Agent Skill' },
+      { id: 'mcp',      label: 'MCP Server' },
     ],
   },
   {
