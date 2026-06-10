@@ -242,6 +242,13 @@ lokapay request -i --debug https://service1.prism.loka.cash/data.json`}</Code>
         </div>
       </div>
 
+      <Callout kind="gold" label="beyond agents — sovereign money">
+        The same rail that lets agents pay each other also lets a nation run its
+        own money: its own currency, its own rails, that nobody can quietly
+        switch off. From renting money to owning it.{' '}
+        <a className="link" href="#sovereign">See the Sovereign Stack →</a>
+      </Callout>
+
       <H2 id="ov-quick" n={5}>Pick a starting point</H2>
       <Grid cols={3}>
         <Tile title="I want to pay an L402 API" onClick={() => location.hash = 'paycli'}>
@@ -256,6 +263,10 @@ lokapay request -i --debug https://service1.prism.loka.cash/data.json`}</Code>
         <Tile title="I want to operate the rail" onClick={() => location.hash = 'lnd'}>
           Run loka-p2p-lnd on Sui devnet/testnet, peer with the Loka seed nodes, open channels,
           start routing.
+        </Tile>
+        <Tile title="I'm a sovereign / institution" onClick={() => location.hash = 'sovereign'}>
+          See how a nation issues its own stablecoin and clears cross-border on this stack —
+          architecture, market entry, and what only real operation builds.
         </Tile>
       </Grid>
     </>

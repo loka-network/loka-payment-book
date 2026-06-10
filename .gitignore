@@ -6,6 +6,7 @@
 *.swo
 .idea/
 .vscode/
+.claude/
 
 # Local dev scratch
 node_modules/

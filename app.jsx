@@ -15,6 +15,18 @@ const PROJECTS = [
     ],
   },
   {
+    id: 'sovereign', label: 'Sovereign Stack', group: 'sovereign',
+    repo: 'https://github.com/loka-network/loka-chain',
+    Component: window.PageSovereign,
+    subs: [
+      { id: 'why',          label: 'Why Sovereign' },
+      { id: 'architecture', label: 'National Stablecoin Architecture' },
+      { id: 'markets',      label: 'Market Entry' },
+      { id: 'moat',         label: 'Network-Asset Moat' },
+      { id: 'neobank',      label: 'NeoBank & Roadmap' },
+    ],
+  },
+  {
     id: 'paycli', label: 'Pay CLI', group: 'projects',
     repo: 'https://github.com/loka-network/paycli',
     skill: 'https://raw.githubusercontent.com/loka-network/paycli/main/skill/SKILL.md',
@@ -107,9 +119,10 @@ const PROJECTS = [
 ];
 
 const GROUP_LABELS = {
-  start:    'Start here',
-  projects: 'Projects',
-  more:     'More',
+  sovereign: 'Vision',
+  start:     'Start here',
+  projects:  'Protocol / Stack',
+  more:      'More',
 };
 
 window.PROJECT_BY_ID = Object.fromEntries(PROJECTS.map(p => [p.id, p]));
